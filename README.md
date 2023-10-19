@@ -1,3 +1,3 @@
-# Microservice POC
+# Domain event
 
-A POC app for microservice architecture.
+Domain event demo
