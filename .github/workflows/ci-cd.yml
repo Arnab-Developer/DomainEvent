@@ -43,13 +43,13 @@ jobs:
     - name: Create docker image
       run: docker build -f src/WebApplication1/Dockerfile -t ${{ env.IMAGE_NAME }} .
 
-  acr-push:
+  docker-image-push:
     if: ${{ github.event_name == 'push' }}
-    name: Push to ACR
+    name: Docker image push
     runs-on: ubuntu-latest
     needs: build
     env:
-      ACR_SERVER: ghcr.io/arnabcog/webapplication1
+      SERVER: ghcr.io/arnab-developer/webapplication1
     permissions:
       packages: write
     steps:
@@ -71,7 +71,7 @@ jobs:
     - name: ACR login
       uses: docker/login-action@v2
       with:
-        registry: ${{ env.ACR_SERVER }}
+        registry: ${{ env.SERVER }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
