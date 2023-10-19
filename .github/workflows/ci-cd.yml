@@ -1,0 +1,79 @@
+name: CI CD
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  release:
+    types: [ published ]
+
+env:
+  CONFIGURATION: Release
+  DOTNET_VERSION: 7.0.x
+  IMAGE_NAME: webapplication1:1.0.1
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Code checkout
+      uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build
+      run: dotnet build -c ${{ env.CONFIGURATION }} --no-restore
+
+    - name: Test
+      run: dotnet test -c ${{ env.CONFIGURATION }} --no-restore
+
+    - name: Publish
+      run: dotnet publish src/WebApplication1/WebApplication1.csproj -c ${{ env.CONFIGURATION }} -o src/WebApplication1/bin/publish
+
+    - name: Create docker image
+      run: docker build -f src/WebApplication1/Dockerfile -t ${{ env.IMAGE_NAME }} .
+
+  acr-push:
+    if: ${{ github.event_name == 'push' }}
+    name: Push to ACR
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      ACR_SERVER: ghcr.io/arnabcog/webapplication1
+    permissions:
+      packages: write
+    steps:
+
+    - name: Code checkout
+      uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Publish
+      run: dotnet publish src/WebApplication1/WebApplication1.csproj -c ${{ env.CONFIGURATION }} -o src/WebApplication1/bin/publish
+
+    - name: Create docker image
+      run: docker build -f src/WebApplication1/Dockerfile -t ${{ env.ACR_SERVER }}/${{ env.IMAGE_NAME }} .
+
+    - name: ACR login
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.ACR_SERVER }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Push docker image
+      run: docker push ${{ env.ACR_SERVER }}/${{ env.IMAGE_NAME }}
